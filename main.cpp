@@ -29,13 +29,26 @@
 
 using namespace std;
 
+// one millisecond is one thousand microseconds
+static const int ONE_MS = 1000;
+
 // number of concurrent processes
 static const int NUM_PROC = 6;
 
 // the number of requests by each process
-static const int REQS = 1;
+static const int REQS = 2000;
+
+// the number of bank accounts
+static const int NUM_ACCTS = 4;
+
+// the semaphore id
+static const int AVAILABLE = 1;
+
+// The index in shared memory buffers for Checking account
+static const int CHECKING = 0;
+
 /*
- * Five service requests for user processes
+ *  Service requests for user processes
  */
  
 // add to a random account
@@ -53,6 +66,27 @@ static const int VSTRAN = 20011;
 // add to IRA
 static const int IADD = 999331;
 
+
+/*
+ * Semaphores for each account
+ */
+ 
+static const int CHK_SEM = 1;
+static const int SAV_SEM = 2;
+static const int VAC_SEM = 3;
+static const int IRA_SEM = 4;
+ 
+ 
+ /*
+  * Account index within bank array
+  */
+
+static const int CHK_ACCT = 0;
+static const int SAV_ACCT = 1;
+static const int VAC_ACCT = 2;
+static const int IRA_ACCT = 3;
+
+
 // Summary:
 //
 //  Returns one of the five service requests.
@@ -64,12 +98,44 @@ static const int IADD = 999331;
 int getreq(default_random_engine, uniform_int_distribution<int>);
 
 
+// Summary:
+//
+//  Initializes user bank accounts.
+//
+// Arguments:
+//
+//      array of integer pointers for referencing account balances
+//
+void createAccts(int**);
+
+
+
+/*
+ * Function definitions
+ */
+
+
 int main(int argc, const char * argv[]) {
+	
+   	//set up the four seperate integers for the four seperate bank accounts
+	int shmid[NUM_ACCTS];
+	
+    // array holds references to all accounts in shared memory
+    int *bank[NUM_ACCTS];
     
-    vector<int> v;
+    for(int x = 0; x < NUM_ACCTS; x++){
+        shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
+        bank[x] = (int *)shmat(shmid[x], 0, SHM_RND);
+    }
     
+    // use four semaphores to restrict concurrent access to accounts
+    SEMAPHORE sem(4);
+	sem.V(CHK_SEM);
+	sem.V(SAV_SEM);
+	sem.V(VAC_SEM);
+	sem.V(IRA_SEM);
+	
     int childProcess;
-    
     
     int y;
     for(y = 0; y < NUM_PROC; y++) {
@@ -78,16 +144,16 @@ int main(int argc, const char * argv[]) {
         
         if(childProcess == 0){
         
-			default_random_engine generator(random_device{}());
-			uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
-			
-        	for (int r = 0; r < REQS; r++) {
-			   v.push_back(getreq(generator, distribution));
-			}
-			
-			int sum = accumulate(v.begin(), v.end(), 0);
-			printf("The average value is %d\n", sum / REQS); 
-			
+        	/*
+        	 * Execute with and without P and V operations to observe corruption
+        	 */
+        	 
+        	sem.P(CHK_SEM);
+        	int bal = *bank[CHK_ACCT];
+        	usleep(ONE_MS);
+        	*bank[CHK_ACCT] = (bal + 1);
+        	sem.V(CHK_SEM);
+        	
 			exit(0);
         }
     }   
@@ -101,12 +167,23 @@ int main(int argc, const char * argv[]) {
 	  --y; // decrement number of running children
 	}
 	
+	// ensure that total equals number of processes
+	printf("$%d in Checking account\n", *bank[CHK_ACCT]);
+	
+	// clean up
+	for(int x = 0; x < NUM_ACCTS; x++){
+       	shmctl(shmid[x], IPC_RMID, NULL);
+    } 
+    
+	sem.remove();
+	
     exit(0);
 }
 
-// TEST
+
 int getreq(default_random_engine generator, uniform_int_distribution<int> distribution) {
 
+	// TODO This rarely generates 5 as the return type
 	while (true) {
 		 int random = distribution(generator);
 		if (random % ADD == 0) {
@@ -126,27 +203,14 @@ int getreq(default_random_engine generator, uniform_int_distribution<int> distri
 }
 
 
-
-//  int sem1 = 1;
-//  SEMAPHORE sem(1);
-// 	sem.P(sem1);
-// 	int temp
-// 	temp = *shmBUF[0];
-// 	temp = rand() % 10 + y;
-// 	
-// 	*shmBUF[0] = temp;
-// 	
-// 	cout << *shmBUF[0]<< endl;
-// 	sem.V(sem1);
-    
-    
-//     int shmid[4];
-//     int *shmBUF[4];
-//     int childProcess;
-//     
-//     
-//     //set up the four seperate integers for the four seperate bank accounts
-//     for(int x = 0; x < 4; x++){
-//         shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
-//         shmBUF[x] = (int *)shmat(shmid[x], 0, SHM_RND);
-//     }
+// This code tests the distribution of random bank requests
+//
+// 			default_random_engine generator(random_device{}());
+// 			uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
+// 			
+//         	for (int r = 0; r < REQS; r++) {
+// 			   v.push_back(getreq(generator, distribution));
+// 			}
+// 			
+// 			int sum = accumulate(v.begin(), v.end(), 0);
+// 			printf("The average value is %d\n", sum / REQS); 

@@ -15,10 +15,10 @@ public:
 };
 
 // need to be checking for existing definition
-union semun { 		// truncated definition
-	int val; 	// value used with SETVAL
-	ushort *array; 	// array of values: GETALL and SETALL
-};
+// union semun { 		// truncated definition
+// 	int val; 	// value used with SETVAL
+// 	ushort *array; 	// array of values: GETALL and SETALL
+// };
 
 class SEMAPHORE {
 private:
