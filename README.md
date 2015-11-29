@@ -1,41 +1,37 @@
 # Semaphores
 
-## Initializing Git on local machine
-
-1. Initialize directory on local machine  
-
-	git init  
-	
-2. Add remote branch tracking  
-
+**Initializing Git on local machine**
+  
+	git init
+	// establishes git version control within current directory 
+	 
 	git remote add origin https://github.com/drewstiles/Semaphores.git  
-	
-3. Create a branch off master for workspace  
-
+	 
 	git pull origin master  
-	*local master branch up-to-date with remote master branch*  
+	// local master branch up-to-date with remote master branch  
 	
 	git checkout -b a-branch-name  
-	*new branch created and switched to*  
+	// new branch created and switched to  
 
 
 **Updating local branch**  
 
-	git add .  
-	*files added to staging phase*  
+	// add files to be bookmarked next
+	git add .    
+
+	// create a bookmark of direcoty status
+	git commit -m "a commit message"   
 	
-	git commit -m "a commit message"  
-	*staged files bookmarked in time*  
-	
-	git log --oneline  
-	*chronological list of bookmarks*  
+	// get chronological list of bookmarks 
+	git log --oneline   
 	
 **Updating server with your local branch status**  
 
-	git pull origin your-branch-name  
-	*make sure your branch up-to-date with remote version*  
-	
+	// bring local branch up-to-date with remote version 
+	git pull origin your-branch-name   
+
+	// push the most recent bookmark to server	
 	git push origin your-branch-name  
-	*pushes the most recent bookmark to server*  
+  
 
 
