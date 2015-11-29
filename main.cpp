@@ -24,6 +24,36 @@
 
 using namespace std;
 
+/*
+ * Five service requests for user processes
+ */
+ 
+// add to a random account
+static const int ADD = 3001;
+
+// remove from a random account
+static const int REM = 503;
+
+// transfer to an account
+static const int TRAN = 10007;
+
+// transfer from Vacation and Savings to Checking
+static const int VSTRAN = 20011;
+
+// add to IRA
+static const int IADD = 999331;
+
+// Summary:
+//
+//  Returns one of the five service requests.
+//
+// Returns:
+//
+//      an integer denoting the service to request
+//
+int getreq() {
+
+
 int main(int argc, const char * argv[]) {
    
     int shmid[4];
@@ -56,12 +86,28 @@ int main(int argc, const char * argv[]) {
             cout << *shmBUF[0]<< endl;
             sem.V(sem1);
         }
-    }
-    
-    
-    
-    
-    
-    
-    
+    }    
 }
+
+// TEST
+int getreq() {
+	while (true) {
+		default_random_engine generator(random_device{}());
+		uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
+		int random = distribution(generator);
+		if (random % ADD == 0) {
+			return ADD;
+		} else if (random % REM == 0) {
+			return REM;
+		} else if (random % TRAN == 0) {
+			return (TRAN;
+		} else if (random % VSTRAN == 0) {
+			return VSTRAN;
+		} else if (random % IADD == 0) {
+			return IADD;
+		} else {
+			continue;
+		} 
+	}
+
+
