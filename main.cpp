@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <iostream>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,10 +21,19 @@
 #include <sys/shm.h>
 #include <cctype>
 #include <cstdlib>
+#include <vector>
+#include <numeric>
+#include <random>
+#include <algorithm>
 #include "semaphore.h"
 
 using namespace std;
 
+// number of concurrent processes
+static const int NUM_PROC = 6;
+
+// the number of requests by each process
+static const int REQS = 1;
 /*
  * Five service requests for user processes
  */
@@ -51,63 +61,92 @@ static const int IADD = 999331;
 //
 //      an integer denoting the service to request
 //
-int getreq() {
+int getreq(default_random_engine, uniform_int_distribution<int>);
 
 
 int main(int argc, const char * argv[]) {
-   
-    int shmid[4];
-    int *shmBUF[4];
+    
+    vector<int> v;
+    
     int childProcess;
-    int sem1 = 1;
     
-    SEMAPHORE sem(1);
     
-    //set up the four seperate integers for the four seperate bank accounts
-    for(int x; x < 4; x++){
-        shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
-        shmBUF[x] = (int *)shmat(shmid[x], 0, SHM_RND);
-  
-    }
+    int y;
+    for(y = 0; y < NUM_PROC; y++) {
     
-    //create new process, this is were i left off, I was trying to see how the
-    //semaphoew worked when running multiple processes.
-    for(int y; y < 5; y++){
         childProcess = fork();
         
         if(childProcess == 0){
-            sem.P(sem1);
-            int temp
-            temp = *shmBUF[0];
-            temp = rand() % 10 + y;
-            
-            *shmBUF[0] = temp;
-            
-            cout << *shmBUF[0]<< endl;
-            sem.V(sem1);
+        
+			default_random_engine generator(random_device{}());
+			uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
+			
+        	for (int r = 0; r < REQS; r++) {
+			   v.push_back(getreq(generator, distribution));
+			}
+			
+			int sum = accumulate(v.begin(), v.end(), 0);
+			printf("The average value is %d\n", sum / REQS); 
+			
+			exit(0);
         }
-    }    
+    }   
+    
+    // waiting for all children to exit
+	int status;
+	pid_t pid;
+	while (y > 0) {
+	  pid = wait(&status);
+	  printf("pid (%d) exits\n", pid);
+	  --y; // decrement number of running children
+	}
+	
+    exit(0);
 }
 
 // TEST
-int getreq() {
+int getreq(default_random_engine generator, uniform_int_distribution<int> distribution) {
+
 	while (true) {
-		default_random_engine generator(random_device{}());
-		uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
-		int random = distribution(generator);
+		 int random = distribution(generator);
 		if (random % ADD == 0) {
-			return ADD;
+			return 1;
 		} else if (random % REM == 0) {
-			return REM;
+			return 2;
 		} else if (random % TRAN == 0) {
-			return (TRAN;
+			return 3;
 		} else if (random % VSTRAN == 0) {
-			return VSTRAN;
+			return 4;
 		} else if (random % IADD == 0) {
-			return IADD;
+			return 5;
 		} else {
 			continue;
 		} 
 	}
+}
 
 
+
+//  int sem1 = 1;
+//  SEMAPHORE sem(1);
+// 	sem.P(sem1);
+// 	int temp
+// 	temp = *shmBUF[0];
+// 	temp = rand() % 10 + y;
+// 	
+// 	*shmBUF[0] = temp;
+// 	
+// 	cout << *shmBUF[0]<< endl;
+// 	sem.V(sem1);
+    
+    
+//     int shmid[4];
+//     int *shmBUF[4];
+//     int childProcess;
+//     
+//     
+//     //set up the four seperate integers for the four seperate bank accounts
+//     for(int x = 0; x < 4; x++){
+//         shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
+//         shmBUF[x] = (int *)shmat(shmid[x], 0, SHM_RND);
+//     }
