@@ -42,10 +42,10 @@ static const int REQS = 2000;
 static const int NUM_ACCTS = 4;
 
 // the semaphore id
-static const int AVAILABLE = 1;
-
+// static const int AVAILABLE = 1;
+// 
 // The index in shared memory buffers for Checking account
-static const int CHECKING = 0;
+// static const int CHECKING = 0;
 
 /*
  *  Service requests for user processes
@@ -97,21 +97,12 @@ static const int IRA_ACCT = 3;
 //
 //      an integer denoting the service to request
 //
-int getreq(default_random_engine, uniform_int_distribution<int>);
-
-
-// Summary:
-//
-//  Initializes user bank accounts.
-//
-// Arguments:
-//
-//      array of integer pointers for referencing account balances
-//
-void createAccts(int**);
+int getRandomRequest(default_random_engine, uniform_int_distribution<int>);
 
 void deposit( int * account);
 
+
+int getRandomAccount();
 
 
 /*
@@ -128,11 +119,11 @@ int main(int argc, const char * argv[]) {
     int *bank[NUM_ACCTS];
     
     for(int x = 0; x < NUM_ACCTS; x++){
-        shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
+    	shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
         bank[x] = (int *)shmat(shmid[x], 0, SHM_RND);
     }
     
-    // use four semaphores to restrict concurrent access to accounts
+    // use four semaphores to restrict concurrent access to four accounts
     SEMAPHORE sem(4);
 	sem.V(CHK_SEM);
 	sem.V(SAV_SEM);
@@ -141,13 +132,12 @@ int main(int argc, const char * argv[]) {
 	
     int childProcess;
     
-    int y;
-    for(y = 0; y < NUM_PROC; y++) {
+    int p;
+    for(p = 0; p < NUM_PROC; p++) {
     
         childProcess = fork();
-        
-        
-        if(childProcess == 0){
+
+        if(childProcess == 0) {
         
         	/*
         	 * Execute with and without P and V operations to observe corruption
@@ -156,17 +146,13 @@ int main(int argc, const char * argv[]) {
             switch(1)
             {
                 case 1: {
-                    int account = rand() % 4;
-                    sem.P(semID[1]);
-                    deposit(bank[1]);
-                    cout << "& = "  << *bank[1] << endl;
-                    sem.V(semID[1]);
+                    int account = getRandomAccount();
+                    sem.P(semID[account]);
+                    deposit(bank[account]);
+                    sem.V(semID[account]);
                     break;
                 }
-                    
                 default: {
-            
-                
                     break;
                 }
             }
@@ -177,14 +163,13 @@ int main(int argc, const char * argv[]) {
     }
 
     
-    
     // waiting for all children to exit
 	int status;
 	pid_t pid;
-	while (y > 0) {
+	while (p > 0) {
 	  pid = wait(&status);
 	  printf("pid (%d) exits\n", pid);
-	  --y; // decrement number of running children
+	  --p; // decrement number of running children
 	}
 	
 	// ensure that total equals number of processes
@@ -202,8 +187,14 @@ int main(int argc, const char * argv[]) {
     exit(0);
 }
 
+int getRandomAccount()
+{
+	default_random_engine generator(random_device{}());
+	uniform_int_distribution<int> distribution(0, NUM_ACCTS - 1);
+	return distribution(generator);
+}
 
-int getreq(default_random_engine generator, uniform_int_distribution<int> distribution) {
+int getRandomRequests(default_random_engine generator, uniform_int_distribution<int> distribution) {
 
 	// TODO This rarely generates 5 as the return type
 	while (true) {
@@ -224,7 +215,9 @@ int getreq(default_random_engine generator, uniform_int_distribution<int> distri
 	}
 }
 
-void deposit(int * account){
+
+
+void deposit(int * account) {
     
     int bal = *account;
     usleep(ONE_MS);
