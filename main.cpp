@@ -75,6 +75,8 @@ static const int CHK_SEM = 1;
 static const int SAV_SEM = 2;
 static const int VAC_SEM = 3;
 static const int IRA_SEM = 4;
+
+static const int semID[4] = {CHK_SEM, SAV_SEM, VAC_SEM, IRA_SEM};
  
  
  /*
@@ -107,6 +109,8 @@ int getreq(default_random_engine, uniform_int_distribution<int>);
 //      array of integer pointers for referencing account balances
 //
 void createAccts(int**);
+
+void deposit( int * account);
 
 
 
@@ -142,21 +146,36 @@ int main(int argc, const char * argv[]) {
     
         childProcess = fork();
         
+        
         if(childProcess == 0){
         
         	/*
         	 * Execute with and without P and V operations to observe corruption
         	 */
-        	 
-        	sem.P(CHK_SEM);
-        	int bal = *bank[CHK_ACCT];
-        	usleep(ONE_MS);
-        	*bank[CHK_ACCT] = (bal + 1);
-        	sem.V(CHK_SEM);
+           
+            switch(1)
+            {
+                case 1: {
+                    int account = rand() % 4;
+                    sem.P(semID[3]);
+                    deposit(bank[3]);
+                    sem.V(semID[3]);
+                    break;
+                }
+                    
+                default: {
+            
+                
+                    break;
+                }
+            }
+
         	
 			exit(0);
         }
-    }   
+    }
+
+    
     
     // waiting for all children to exit
 	int status;
@@ -168,8 +187,10 @@ int main(int argc, const char * argv[]) {
 	}
 	
 	// ensure that total equals number of processes
-	printf("$%d in Checking account\n", *bank[CHK_ACCT]);
-	
+    int x;
+    for (x = 0; x < 4; x++){
+        printf("$%d in Checking account\n", *bank[x]);
+    }
 	// clean up
 	for(int x = 0; x < NUM_ACCTS; x++){
        	shmctl(shmid[x], IPC_RMID, NULL);
@@ -200,6 +221,14 @@ int getreq(default_random_engine generator, uniform_int_distribution<int> distri
 			continue;
 		} 
 	}
+}
+
+void deposit(int * account){
+    
+    int bal = *account;
+    usleep(ONE_MS);
+    *account = (bal + 1);
+
 }
 
 
