@@ -71,10 +71,10 @@ static const int IADD = 999331;
  * Semaphores for each account
  */
  
-static const int CHK_SEM = 1;
-static const int SAV_SEM = 2;
-static const int VAC_SEM = 3;
-static const int IRA_SEM = 4;
+static const int CHK_SEM = 0;
+static const int SAV_SEM = 1;
+static const int VAC_SEM = 2;
+static const int IRA_SEM = 3;
 
 static const int semID[4] = {CHK_SEM, SAV_SEM, VAC_SEM, IRA_SEM};
  
@@ -157,9 +157,10 @@ int main(int argc, const char * argv[]) {
             {
                 case 1: {
                     int account = rand() % 4;
-                    sem.P(semID[3]);
-                    deposit(bank[3]);
-                    sem.V(semID[3]);
+                    sem.P(semID[1]);
+                    deposit(bank[1]);
+                    cout << "& = "  << *bank[1] << endl;
+                    sem.V(semID[1]);
                     break;
                 }
                     
