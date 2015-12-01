@@ -138,10 +138,6 @@ int main(int argc, const char * argv[]) {
         childProcess = fork();
 
         if(childProcess == 0) {
-        
-        	/*
-        	 * Execute with and without P and V operations to observe corruption
-        	 */
            
            	int request = randomRequest();
             switch(request)
