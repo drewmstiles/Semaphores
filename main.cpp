@@ -159,15 +159,15 @@ int main(int argc, const char * argv[]) {
                 	break;
                 }
                 case 3: {
-                	printf("request = %d ", request);
+                	printf("request = %d\n, request);
                 	break;
                 }
                 case 4: {
-                	printf("request = %d ", request);
+                	printf("request = %d\n", request);
                 	break;
                 }
                 case 5: {
-					printf("request = %d ", request);                	
+					printf("request = %d\n", request);                	
 					break;
 				}
                 default: {
