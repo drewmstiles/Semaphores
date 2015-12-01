@@ -41,16 +41,13 @@ static const int REQS = 2000;
 // the number of bank accounts
 static const int NUM_ACCTS = 4;
 
-// the semaphore id
-static const int AVAILABLE = 1;
-
-// The index in shared memory buffers for Checking account
-static const int CHECKING = 0;
+// the amount exchanged during a transaction
+static const int PAYMENT = 1;
 
 /*
  *  Service requests for user processes
  */
- 
+
 // add to a random account
 static const int ADD = 3001;
 
@@ -70,24 +67,26 @@ static const int IADD = 999331;
 /*
  * Semaphores for each account
  */
- 
+
 static const int CHK_SEM = 0;
 static const int SAV_SEM = 1;
 static const int VAC_SEM = 2;
 static const int IRA_SEM = 3;
 
-static const int semID[4] = {CHK_SEM, SAV_SEM, VAC_SEM, IRA_SEM};
- 
- 
- /*
-  * Account index within bank array
-  */
+static const int locks[4] = {CHK_SEM, SAV_SEM, VAC_SEM, IRA_SEM};
+
+
+/*
+ * Account index within bank array
+ */
 
 static const int CHK_ACCT = 0;
 static const int SAV_ACCT = 1;
 static const int VAC_ACCT = 2;
 static const int IRA_ACCT = 3;
 
+
+static const char* names[4] = { "Checkings", "Savings", "Vacation", "IRA" };
 
 // Summary:
 //
@@ -97,22 +96,37 @@ static const int IRA_ACCT = 3;
 //
 //      an integer denoting the service to request
 //
-int getreq(default_random_engine, uniform_int_distribution<int>);
+int randomRequest();
 
+void deposit(int *account);
+
+void withdraw(int *account);
+
+int randomAccount();
 
 // Summary:
 //
-//  Initializes user bank accounts.
+//  Transfers a fixed amount between two random user bank accounts
 //
 // Arguments:
 //
-//      array of integer pointers for referencing account balances
+//      two integer pointers to random generated user bank accounts
 //
-void createAccts(int**);
+void transfer( int * account_from , int * account_to );
 
-void deposit( int * account);
+// Summary:
+//
+//  Transfers a fixed amount from the savings and vacation user bank
+//  accounts to the user checking bank account
+//
+// Arguments:
+//
+//      three integer pointers; the savings, vacation and checking
+//      bank accounts.
+//
+void transferToChecking( int * savings , int * vacation , int * checking);
 
-
+void depositIRA(int * IRA , int * account_from);
 
 /*
  * Function definitions
@@ -120,10 +134,10 @@ void deposit( int * account);
 
 
 int main(int argc, const char * argv[]) {
-	
+    
    	//set up the four seperate integers for the four seperate bank accounts
-	int shmid[NUM_ACCTS];
-	
+    int shmid[NUM_ACCTS];
+    
     // array holds references to all accounts in shared memory
     int *bank[NUM_ACCTS];
     
@@ -132,115 +146,185 @@ int main(int argc, const char * argv[]) {
         bank[x] = (int *)shmat(shmid[x], 0, SHM_RND);
     }
     
-    // use four semaphores to restrict concurrent access to accounts
+    int money = 100;
+    for(int y = 0; y < NUM_ACCTS; y++){
+        *bank[y] = money;
+    }
+    
+    // use four semaphores to restrict concurrent access to four accounts
     SEMAPHORE sem(4);
-	sem.V(CHK_SEM);
-	sem.V(SAV_SEM);
-	sem.V(VAC_SEM);
-	sem.V(IRA_SEM);
-	
+    sem.V(CHK_SEM);
+    sem.V(SAV_SEM);
+    sem.V(VAC_SEM);
+    sem.V(IRA_SEM);
+    
     int childProcess;
     
-    int y;
-    for(y = 0; y < NUM_PROC; y++) {
-    
+    int p;
+    for(p = 0; p < NUM_PROC; p++) {
+        
         childProcess = fork();
         
-        
-        if(childProcess == 0){
-        
-        	/*
-        	 * Execute with and without P and V operations to observe corruption
-        	 */
-           
-            switch(1)
+        if(childProcess == 0) {
+            
+           	int request = randomRequest();
+            switch(5)
             {
                 case 1: {
-                    int account = rand() % 4;
-                    sem.P(semID[1]);
-                    deposit(bank[1]);
-                    cout << "& = "  << *bank[1] << endl;
-                    sem.V(semID[1]);
+                    int account = randomAccount();
+                    sem.P(locks[account]);
+                    printf("Deposit to %s account\n", names[account]);
+                    deposit(bank[account]);
+                    sem.V(locks[account]);
                     break;
                 }
-                    
+                case 2: {
+                    int account = randomAccount();
+                    sem.P(locks[account]);
+                    printf("Withdraw from %s account\n", names[account]);
+                    withdraw(bank[account]);
+                    sem.V(locks[account]);
+                    break;
+                }
+                case 3: {
+                    //printf("request = %d\n", request);
+                    int account_from = randomAccount();
+                    int account_to = randomAccount();
+                    sem.P(locks[account_from]);
+                    sem.P(locks[account_to]);
+                    //sem.P(locks[1]);
+                    //sem.P(locks[2]);
+                    transfer(bank[account_from] , bank[account_to]);
+                    //transfer(bank[1] , bank[2]);
+                    sem.V(locks[account_from]);
+                    sem.V(locks[account_to]);
+                    //sem.V(locks[1]);
+                    //sem.V(locks[2]);
+                    break;
+                }
+                case 4: {
+                    printf("request = %d\n", request);
+                    sem.P(locks[SAV_SEM]);
+                    sem.P(locks[VAC_SEM]);
+                    sem.P(locks[CHK_SEM]);
+                    transferToChecking(bank[SAV_ACCT] , bank[VAC_ACCT] ,bank[CHK_ACCT]);
+
+                    sem.V(locks[SAV_SEM]);
+                    sem.V(locks[VAC_SEM]);
+                    sem.V(locks[CHK_SEM]);
+                    break;
+                }
+                case 5: {
+                    printf("request = %d\n", request);
+                    int account_w = randomAccount();
+                    sem.P(locks[account_w]);
+                    sem.P(locks[IRA_SEM]);
+                    depositIRA(bank[IRA_ACCT] , bank[account_w] );
+                    sem.V(locks[account_w]);
+                    sem.V(locks[IRA_SEM]);
+                    break;
+                }
                 default: {
-            
-                
+                    printf("ERROR - Default on request = %d\n", request);
                     break;
                 }
             }
-
-        	
-			exit(0);
+            
+            exit(0);
         }
     }
-
-    
     
     // waiting for all children to exit
-	int status;
-	pid_t pid;
-	while (y > 0) {
-	  pid = wait(&status);
-	  printf("pid (%d) exits\n", pid);
-	  --y; // decrement number of running children
-	}
-	
-	// ensure that total equals number of processes
-    int x;
-    for (x = 0; x < 4; x++){
-        printf("$%d in Checking account\n", *bank[x]);
+    int status;
+    pid_t pid;
+    while (p > 0) {
+        pid = wait(&status);
+        printf("pid (%d) exits\n", pid);
+        --p;
     }
-	// clean up
-	for(int x = 0; x < NUM_ACCTS; x++){
-       	shmctl(shmid[x], IPC_RMID, NULL);
-    } 
     
-	sem.remove();
-	
+    // output and clean up
+    for (int x = 0; x < NUM_ACCTS; x++){
+        printf("$%d in %s account\n", *bank[x], names[x]);
+        shmctl(shmid[x], IPC_RMID, NULL);
+    }
+    
+    sem.remove();
+    
     exit(0);
 }
-
-
-int getreq(default_random_engine generator, uniform_int_distribution<int> distribution) {
-
-	// TODO This rarely generates 5 as the return type
-	while (true) {
-		 int random = distribution(generator);
-		if (random % ADD == 0) {
-			return 1;
-		} else if (random % REM == 0) {
-			return 2;
-		} else if (random % TRAN == 0) {
-			return 3;
-		} else if (random % VSTRAN == 0) {
-			return 4;
-		} else if (random % IADD == 0) {
-			return 5;
-		} else {
-			continue;
-		} 
-	}
+int randomAccount()
+{
+    default_random_engine generator(random_device{}());
+    uniform_int_distribution<int> distribution(0, NUM_ACCTS - 1);
+    return distribution(generator);
 }
-
-void deposit(int * account){
+int randomRequest() {
+    default_random_engine generator(random_device{}());
+    uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
     
+    // TODO This rarely generates 5 as the return type
+    while (true) {
+        int random = distribution(generator);
+        if (random % ADD == 0) {
+            return 1;
+        } else if (random % REM == 0) {
+            return 2;
+        } else if (random % TRAN == 0) {
+            return 3;
+        } else if (random % VSTRAN == 0) {
+            return 4;
+        } else if (random % IADD == 0) {
+            return 5;
+        } else {
+            continue;
+        }
+    }
+}
+void deposit(int *account) {
     int bal = *account;
     usleep(ONE_MS);
     *account = (bal + 1);
+}
+void withdraw(int *account) {
+    int oldBalance = *account;
+    int newBalance = oldBalance - PAYMENT;
+    if (newBalance < 0) {
+        // 		printf("Withdraw Notice - Insufficient Funds (BAL = $%d, REQ = $%d)\n",
+        // 			oldBalance, PAYMENT);
+    }
+    else {
+        *account = newBalance;
+    }
+}
 
+void transfer( int * account_from , int * account_to ){
+    
+    *account_from = *account_from - 1;
+    *account_to = *account_to + 1;
+    
+}
+
+void transferToChecking( int * savings , int * vacation , int * checking){
+    
+    *savings = *savings - 1;
+    *vacation = *vacation - 1;
+    *checking = *checking + 2;
+    usleep(ONE_MS);
+    
+}
+
+void depositIRA(int * IRA , int * account_from){
+    
+    *account_from = *account_from - 1;
+    *IRA = *IRA + 1;
+    usleep(ONE_MS);
+    
 }
 
 
-// This code tests the distribution of random bank requests
-//
-// 			default_random_engine generator(random_device{}());
-// 			uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
-// 			
-//         	for (int r = 0; r < REQS; r++) {
-// 			   v.push_back(getreq(generator, distribution));
-// 			}
-// 			
-// 			int sum = accumulate(v.begin(), v.end(), 0);
-// 			printf("The average value is %d\n", sum / REQS); 
+
+
+
+
+
