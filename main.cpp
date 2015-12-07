@@ -195,6 +195,7 @@ int main(int argc, const char * argv[]) {
                         while(account_to == account_from){
                             account_from = randomAccount();
                         }
+                        
                         sem.P(locks[account_to]);
                         sem.P(locks[account_from]);
                         transfer(bank[account_from] , bank[account_to]);
@@ -229,7 +230,8 @@ int main(int argc, const char * argv[]) {
                         break;
                     }
                     default: {
-                        printf("ERROR - Default on request = %d\n", request);
+                            printf("d\n");
+//                         printf("ERROR - Default on request = %d\n", request);
                         break;
                     }
                 }
@@ -270,7 +272,7 @@ int randomRequest() {
     uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
     
     // TODO This rarely generates 5 as the return type
-    while (true) {
+//     while (true) {
         int random = distribution(generator);
         if (random % ADD == 0) {
             return 1;
@@ -283,9 +285,9 @@ int randomRequest() {
         } else if (random % IADD == 0) {
             return 5;
         } else {
-            continue;
+return 0;
         }
-    }
+//     }
 }
 void deposit(int *account) {
     int bal = *account;
