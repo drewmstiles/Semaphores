@@ -168,7 +168,7 @@ int main(int argc, const char * argv[]) {
         
         if(childProcess == 0) {
             
-            for(int s = 0; s < 200; s++){
+            for(int s = 0; s < REQS; s++){
                 
                 int request = randomRequest();
                 switch(request)
@@ -176,7 +176,6 @@ int main(int argc, const char * argv[]) {
                     case 1: {
                         int account = randomAccount();
                         sem.P(locks[account]);
-                        printf("Deposit to %s account\n", names[account]);
                         deposit(bank[account]);
                         sem.V(locks[account]);
                         break;
@@ -184,23 +183,19 @@ int main(int argc, const char * argv[]) {
                     case 2: {
                         int account = randomAccount();
                         sem.P(locks[account]);
-                        printf("Withdraw from %s account\n", names[account]);
                         withdraw(bank[account]);
                         sem.V(locks[account]);
                         break;
                     }
                     case 3: {
-                        //printf("request = %d\n", request);
                         int account_from = randomAccount();
                         int account_to = randomAccount();
                         while(account_to == account_from){
                             account_from = randomAccount();
                         }
-                        
                         sem.P(locks[account_to]);
                         sem.P(locks[account_from]);
                         transfer(bank[account_from] , bank[account_to]);
-                        printf("Transfer from %s account to %s account\n ", names[account_from] , names[account_to]);
                         sem.V(locks[account_to]);
                         sem.V(locks[account_from]);
                         break;
@@ -210,7 +205,6 @@ int main(int argc, const char * argv[]) {
                         sem.P(locks[VAC_SEM]);
                         sem.P(locks[CHK_SEM]);
                         transferToChecking(bank[SAV_ACCT] , bank[VAC_ACCT] ,bank[CHK_ACCT]);
-                        printf("Transfer from %s and %s account to %s account\n ", names[SAV_ACCT] , names[VAC_ACCT], names[CHK_ACCT]);
                         sem.V(locks[SAV_SEM]);
                         sem.V(locks[VAC_SEM]);
                         sem.V(locks[CHK_SEM]);
@@ -225,13 +219,12 @@ int main(int argc, const char * argv[]) {
                         sem.P(locks[account_w]);
                         sem.P(locks[IRA_SEM]);
                         depositIRA(bank[IRA_ACCT] , bank[account_w] );
-                        printf("Deposit from %s account to %s account\n", names[account_w] , names[IRA_ACCT]);
                         sem.V(locks[account_w]);
                         sem.V(locks[IRA_SEM]);
                         break;
                     }
                     default: {
-                            printf("d\n");
+//                             printf("def\n");
 //                         printf("ERROR - Default on request = %d\n", request);
                         break;
                     }
@@ -269,11 +262,11 @@ int randomAccount()
     uniform_int_distribution<int> distribution(0, NUM_ACCTS - 1);
     return distribution(generator);
 }
+
 int randomRequest() {
     default_random_engine generator(random_device{}());
     uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
     
-    // TODO This rarely generates 5 as the return type
 //     while (true) {
         int random = distribution(generator);
         if (random % ADD == 0) {
@@ -287,7 +280,7 @@ int randomRequest() {
         } else if (random % IADD == 0) {
             return 5;
         } else {
-return 0;
+			return 0;
         }
 //     }
 }
@@ -315,18 +308,6 @@ void transfer( int * account_from , int * account_to ){
     *account_from = *account_from - 1;
     *account_to = *account_to + 1;
     
-}
-
-void withdraw(int *account) {
-	int oldBalance = *account;
-	int newBalance = oldBalance - PAYMENT;
-	if (newBalance < 0) {
-// 		printf("Withdraw Notice - Insufficient Funds (BAL = $%d, REQ = $%d)\n", 
-// 			oldBalance, PAYMENT);
-	} 
-	else {
-		*account = newBalance;
-	}
 }
 		
 void transferToChecking( int * savings , int * vacation , int * checking){
