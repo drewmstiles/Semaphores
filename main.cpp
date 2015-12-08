@@ -262,7 +262,7 @@ int main(int argc, const char * argv[]) {
                 
                 
             }
-            cout << "count = " << counter <<  "-pid = " <<getpid() <<  endl;
+           
             exit(0);
         }
     }
@@ -320,7 +320,7 @@ int randomRequest() {
     default_random_engine generator(random_device{}());
     uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
     
-    //while (true) {
+    while (true) {
         int random = distribution(generator);
         if (random % ADD == 0) {
             return 1;
@@ -333,9 +333,9 @@ int randomRequest() {
         } else if (random % IADD == 0) {
             return 5;
         } else {
-            return 6;
+            continue;
         }
-    //}
+    }
 }
 
 
