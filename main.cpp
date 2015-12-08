@@ -186,7 +186,6 @@ int main(int argc, const char * argv[]) {
                 {
                     case 1: {
                         int account = randomAccount();
-<<<<<<< HEAD
                         sem.P(MUTEX);
                         deposit(bank[account]);
                         *count[0] = *count[0] + 1;
@@ -195,7 +194,6 @@ int main(int argc, const char * argv[]) {
                     }
                     case 2: {
                         int account = randomAccount();
-<<<<<<< HEAD
                         sem.P(MUTEX);
                         withdraw(bank[account]);
 						*count[1] = *count[1] + 1;
@@ -208,7 +206,6 @@ int main(int argc, const char * argv[]) {
                         while(account_to == account_from){
                             account_from = randomAccount();
                         }
-<<<<<<< HEAD
                         sem.P(MUTEX);
                         transfer(bank[account_from] , bank[account_to]);
                         *count[2] = *count[2] + 1;
@@ -218,7 +215,6 @@ int main(int argc, const char * argv[]) {
                     case 4: {
                         sem.P(MUTEX);
                         transferToChecking(bank[SAV_ACCT] , bank[VAC_ACCT] ,bank[CHK_ACCT]);
-<<<<<<< HEAD
                         *count[3] = *count[3] + 1;
                         sem.V(MUTEX);
                         break;
@@ -228,7 +224,6 @@ int main(int argc, const char * argv[]) {
                         while(account_w == IRA_ACCT){
                             account_w = randomAccount();
                         }
-<<<<<<< HEAD
                         sem.P(MUTEX);
                         depositIRA(bank[IRA_ACCT] , bank[account_w]);
                         sem.V(MUTEX);
