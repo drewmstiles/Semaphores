@@ -41,6 +41,9 @@ static const int REQS = 500;
 // the number of bank accounts
 static const int NUM_ACCTS = 4;
 
+// initialize each account to one thousand dollars
+static const int INIT_BAL = 10000;
+
 // the amount exchanged during a transaction
 static const int PAYMENT = 1;
 
@@ -68,12 +71,8 @@ static const int IADD = 999331;
  * Semaphores for each account
  */
 
-static const int CHK_SEM = 0;
-static const int SAV_SEM = 1;
-static const int VAC_SEM = 2;
-static const int IRA_SEM = 3;
+static const int MUTEX = 0;
 
-static const int locks[4] = {CHK_SEM, SAV_SEM, VAC_SEM, IRA_SEM};
 
 
 /*
@@ -87,7 +86,14 @@ static const int IRA_ACCT = 3;
 
 
 static const char* names[4] = { "Checkings", "Savings", "Vacation", "IRA" };
+static const char* ops[5] = { "Deposits", "Withdraws", "Transfers",
+    "Random Transfers", "IRA Deposits" };
 
+
+// ==================== Function Prototypes ====================
+
+
+int randomRequest();
 // Summary:
 //
 //  Returns one of the five service requests.
@@ -95,15 +101,29 @@ static const char* names[4] = { "Checkings", "Savings", "Vacation", "IRA" };
 // Returns:
 //
 //      an integer denoting the service to request
-//
-int randomRequest();
+
 
 void deposit(int *account);
+// Summary:
+//
+//  Returns one of the five service requests.
+//
+// Arguments:
+//
+//      account		the account to deposit into
+
 
 void withdraw(int *account);
+// Summary:
+//
+//  Returns one of the five service requests.
+//
+// Arguments:
+//
+//      account		the account to withdraw from
 
-int randomAccount();
 
+void transfer( int * account_from , int * account_to );
 // Summary:
 //
 //  Transfers a fixed amount between two random user bank accounts
@@ -111,9 +131,9 @@ int randomAccount();
 // Arguments:
 //
 //      two integer pointers to random generated user bank accounts
-//
-void transfer( int * account_from , int * account_to );
 
+
+void transferToChecking( int * savings , int * vacation , int * checking);
 // Summary:
 //
 //  Transfers a fixed amount from the savings and vacation user bank
@@ -123,40 +143,60 @@ void transfer( int * account_from , int * account_to );
 //
 //      three integer pointers; the savings, vacation and checking
 //      bank accounts.
-//
-void transferToChecking( int * savings , int * vacation , int * checking);
+
 
 void depositIRA(int * IRA , int * account_from);
+// Summary:
+//
+//  Deposits a fixed amount from a random account to the IRA banks account
+//
+// Arguments:
+//
+//      two integer pointers; one for the random account that the fixed
+//      amount is being withdrawn from, and another for the IRA bank
+//      account.
 
-/*
- * Function definitions
- */
+
+bool canDecrement(int val);
+// Summary:
+//
+//  Checks the current value in the bank account to assure the account's
+//  balance won't be negative
+//
+// Arguments:
+//
+//      this function passing the intger value of the current balance of
+//      the selected account. This function returns a boolean value, true
+//      if the balance after the decremnet is greater than 0, false if
+//      the balance is negative.
+
+
+void alert();
+// Summary:
+//
+//  Prints out an alert message that the transfer cannot be performed.
+//
+
+
+
+// ==================== Function Definitions ====================
 
 
 int main(int argc, const char * argv[]) {
     
-   	//set up the four seperate integers for the four seperate bank accounts
     int shmid[NUM_ACCTS];
-    
-    // array holds references to all accounts in shared memory
-    int *bank[NUM_ACCTS];
-    
-    for(int x = 0; x < NUM_ACCTS; x++){
+    for(int x = 0; x < NUM_ACCTS; x++) {
         shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
-        bank[x] = (int *)shmat(shmid[x], 0, SHM_RND);
+        bank[x] = (int *)shmat(shmid[x], NULL, 0);
     }
     
-    int money = 10000;
-    for(int y = 0; y < NUM_ACCTS; y++){
-        *bank[y] = money;
+    int *bank[NUM_ACCTS];
+    for(int y = 0; y < NUM_ACCTS; y++) {
+        *bank[y] = INIT_BAL;
     }
-    
-    // use four semaphores to restrict concurrent access to four accounts
-    SEMAPHORE sem(4);
-    sem.V(CHK_SEM);
-    sem.V(SAV_SEM);
-    sem.V(VAC_SEM);
-    sem.V(IRA_SEM);
+
+    SEMAPHORE sem(1);
+    sem.V(MUTEX);
     
     int childProcess;
     
@@ -167,77 +207,61 @@ int main(int argc, const char * argv[]) {
         
         if(childProcess == 0) {
             
-            for(int s = 0; s < 200; s++){
+            for(int r = 0; r < REQS; s++){
                 
                 int request = randomRequest();
-                switch(request)
-                {
+                switch(request) {
                     case 1: {
                         int account = randomAccount();
-                        sem.P(locks[account]);
-                        printf("Deposit to %s account\n", names[account]);
+                        sem.P(MUTEX);
                         deposit(bank[account]);
-                        sem.V(locks[account]);
+                        sem.V(MUTEX);
                         break;
                     }
                     case 2: {
                         int account = randomAccount();
-                        sem.P(locks[account]);
-                        printf("Withdraw from %s account\n", names[account]);
+                        sem.P(MUTEX);
                         withdraw(bank[account]);
-                        sem.V(locks[account]);
+                        sem.V(MUTEX);
                         break;
                     }
                     case 3: {
-                        //printf("request = %d\n", request);
                         int account_from = randomAccount();
                         int account_to = randomAccount();
-                        while(account_to == account_from){
+                        
+                        while(account_to == account_from) {
                             account_from = randomAccount();
                         }
                         
-                        sem.P(locks[account_to]);
-                        sem.P(locks[account_from]);
+                        sem.P(MUTEX);
                         transfer(bank[account_from] , bank[account_to]);
-                        printf("Transfer from %s account to %s account\n ", names[account_from] , names[account_to]);
-                        sem.V(locks[account_to]);
-                        sem.V(locks[account_from]);
+                        sem.V(MUTEX);
                         break;
                     }
                     case 4: {
-                        sem.P(locks[SAV_SEM]);
-                        sem.P(locks[VAC_SEM]);
-                        sem.P(locks[CHK_SEM]);
+                        sem.P(MUTEX);
                         transferToChecking(bank[SAV_ACCT] , bank[VAC_ACCT] ,bank[CHK_ACCT]);
-                        printf("Transfer from %s and %s account to %s account\n ", names[SAV_ACCT] , names[VAC_ACCT], names[CHK_ACCT]);
-                        sem.V(locks[SAV_SEM]);
-                        sem.V(locks[VAC_SEM]);
-                        sem.V(locks[CHK_SEM]);
+                        sem.V(MUTEX);
                         break;
                     }
                     case 5: {
-                        
                         int account_w = randomAccount();
                         while(account_w == IRA_ACCT){
                             account_w = randomAccount();
                         }
-                        sem.P(locks[account_w]);
-                        sem.P(locks[IRA_SEM]);
-                        depositIRA(bank[IRA_ACCT] , bank[account_w] );
-                        printf("Deposit from %s account to %s account\n", names[account_w] , names[IRA_ACCT]);
-                        sem.V(locks[account_w]);
-                        sem.V(locks[IRA_SEM]);
+                        sem.P(MUTEX);
+                        depositIRA(bank[IRA_ACCT] , bank[account_w]);
+                        sem.V(MUTEX);
                         break;
                     }
                     default: {
-                            printf("d\n");
-//                         printf("ERROR - Default on request = %d\n", request);
-                        break;
+						printf("ERROR - Default on request = %d\n", request);
                     }
                 }
                 
                 
             }
+           
             exit(0);
         }
     }
@@ -250,29 +274,35 @@ int main(int argc, const char * argv[]) {
         printf("pid (%d) exits\n", pid);
         --p;
     }
-    
+   	
     // output and clean up
     for (int x = 0; x < NUM_ACCTS; x++){
         printf("$%d in %s account\n", *bank[x], names[x]);
-        shmctl(shmid[x], IPC_RMID, NULL);
     }
+    
+    for (int y = 0; y < 9; y++) {
+        shmctl(shmid[y], IPC_RMID, NULL);
+    };
     
     sem.remove();
     
     exit(0);
 }
-int randomAccount()
-{
+
+
+int randomAccount() {
     default_random_engine generator(random_device{}());
     uniform_int_distribution<int> distribution(0, NUM_ACCTS - 1);
     return distribution(generator);
 }
+
+
 int randomRequest() {
+
     default_random_engine generator(random_device{}());
     uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
     
-    // TODO This rarely generates 5 as the return type
-//     while (true) {
+    while (true) {
         int random = distribution(generator);
         if (random % ADD == 0) {
             return 1;
@@ -287,52 +317,64 @@ int randomRequest() {
         } else {
 return 0;
         }
-//     }
 }
+
+
 void deposit(int *account) {
-    int bal = *account;
-    usleep(ONE_MS);
-    *account = (bal + 1);
+    (*account)++;
 }
+
+
 void withdraw(int *account) {
-    int oldBalance = *account;
-    int newBalance = oldBalance - PAYMENT;
-    if (newBalance < 0) {
-         		printf("Withdraw Notice - Insufficient Funds (BAL = $%d, REQ = $%d)\n",
-         			oldBalance, PAYMENT);
+
+    if (canDecrement(*account)) {
+        (*account)--;
+    } else {
+        alert();
+    }
+}
+
+
+void transfer( int *account_from , int *account_to ) {
+    
+    if (canDecrement(*account_from)) {
+        (*account_from)--;
+        (*account_to)++;
     }
     else {
-        *account = newBalance;
+        alert();
     }
 }
 
-void transfer( int * account_from , int * account_to ){
-    
-    *account_from = *account_from - 1;
-    *account_to = *account_to + 1;
-    
-}
 
-void transferToChecking( int * savings , int * vacation , int * checking){
+void transferToChecking( int *savings , int *vacation , int *checking) {
     
-    *savings = *savings - 1;
-    *vacation = *vacation - 1;
-    *checking = *checking + 2;
-    usleep(ONE_MS);
-    
-}
-
-void depositIRA(int * IRA , int * account_from){
-    
-    *account_from = *account_from - 1;
-    *IRA = *IRA + 1;
-    usleep(ONE_MS);
-    
+    if (canDecrement(*savings) && canDecrement(*vacation)) {
+        (*savings)--;
+        (*vacation)--;
+        (*checking)++;
+    } else {
+        alert();
+    }
 }
 
 
+void depositIRA(int *IRA , int *account_from) {
+
+    if (canDecrement(*account_from)) {    	
+        (*account_from)--;
+        (*IRA)++;
+    } else {
+        alert();
+    }
+}
 
 
+void alert() {
+    cout << "Transfer Denied" << endl;
+}
 
 
-
+bool canDecrement(int val) {
+    return (--val >= 0);
+}
