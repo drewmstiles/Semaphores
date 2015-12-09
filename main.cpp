@@ -86,9 +86,19 @@ static const int IRA_ACCT = 3;
 
 
 static const char* names[4] = { "Checkings", "Savings", "Vacation", "IRA" };
+<<<<<<< HEAD
 static const char* ops[5] = { "Deposits", "Withdraws", "Transfers", 
 	"Random Transfers", "IRA Deposits" };
+=======
+static const char* ops[5] = { "Deposits", "Withdraws", "Transfers",
+    "Random Transfers", "IRA Deposits" };
 
+
+// ==================== Function Prototypes ====================
+>>>>>>> tc
+
+
+int randomRequest();
 // Summary:
 //
 //  Returns one of the five service requests.
@@ -96,15 +106,29 @@ static const char* ops[5] = { "Deposits", "Withdraws", "Transfers",
 // Returns:
 //
 //      an integer denoting the service to request
-//
-int randomRequest();
+
 
 void deposit(int *account);
+// Summary:
+//
+//  Returns one of the five service requests.
+//
+// Arguments:
+//
+//      account		the account to deposit into
+
 
 void withdraw(int *account);
+// Summary:
+//
+//  Returns one of the five service requests.
+//
+// Arguments:
+//
+//      account		the account to withdraw from
 
-int randomAccount();
 
+void transfer( int * account_from , int * account_to );
 // Summary:
 //
 //  Transfers a fixed amount between two random user bank accounts
@@ -112,9 +136,9 @@ int randomAccount();
 // Arguments:
 //
 //      two integer pointers to random generated user bank accounts
-//
-void transfer( int * account_from , int * account_to );
 
+
+void transferToChecking( int * savings , int * vacation , int * checking);
 // Summary:
 //
 //  Transfers a fixed amount from the savings and vacation user bank
@@ -124,14 +148,43 @@ void transfer( int * account_from , int * account_to );
 //
 //      three integer pointers; the savings, vacation and checking
 //      bank accounts.
-//
-void transferToChecking( int * savings , int * vacation , int * checking);
+
 
 void depositIRA(int * IRA , int * account_from);
+// Summary:
+//
+//  Deposits a fixed amount from a random account to the IRA banks account
+//
+// Arguments:
+//
+//      two integer pointers; one for the random account that the fixed
+//      amount is being withdrawn from, and another for the IRA bank
+//      account.
 
-/*
- * Function definitions
- */
+
+bool canDecrement(int val);
+// Summary:
+//
+//  Checks the current value in the bank account to assure the account's
+//  balance won't be negative
+//
+// Arguments:
+//
+//      this function passing the intger value of the current balance of
+//      the selected account. This function returns a boolean value, true
+//      if the balance after the decremnet is greater than 0, false if
+//      the balance is negative.
+
+
+void alert();
+// Summary:
+//
+//  Prints out an alert message that the transfer cannot be performed.
+//
+
+
+
+// ==================== Function Definitions ====================
 
 bool canDecrement(int val) {
 	return (--val >= 0);
@@ -143,30 +196,16 @@ void alert() {
 
 int main(int argc, const char * argv[]) {
     
-   	//set up the four seperate integers for the four seperate bank accounts
-    int shmid[NUM_ACCTS + 5];
-    
-    // array holds references to all accounts in shared memory
-    int *bank[NUM_ACCTS];
-    
-    int *count[4];
-    
-    for(int x = 0; x < NUM_ACCTS; x++){
-    	shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
+    int shmid[NUM_ACCTS];
+    for(int x = 0; x < NUM_ACCTS; x++) {
+        shmid[x] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
         bank[x] = (int *)shmat(shmid[x], NULL, 0);
     }
     
-    for (int z = 0; z < 4; z++) {
-    	shmid[z + 4] = shmget(IPC_PRIVATE, sizeof(int), PERMS);
-        count[z] = (int *)shmat(shmid[z + 4], NULL, 0);
+    int *bank[NUM_ACCTS];
+    for(int y = 0; y < NUM_ACCTS; y++) {
+        *bank[y] = INIT_BAL;
     }
-
-    int money = INIT_BAL;
-    for(int y = 0; y < NUM_ACCTS; y++){
-        *bank[y] = money;
-    }
-    
-    // use four semaphores to restrict concurrent access to four accounts
     SEMAPHORE sem(1);
     sem.V(MUTEX);
     
@@ -179,16 +218,15 @@ int main(int argc, const char * argv[]) {
         
         if(childProcess == 0) {
             
-            for(int s = 0; s < REQS; s++){
+            for(int r = 0; r < REQS; s++){
+
                 
                 int request = randomRequest();
-                switch(request)
-                {
+                switch(request) {
                     case 1: {
                         int account = randomAccount();
                         sem.P(MUTEX);
                         deposit(bank[account]);
-                        *count[0] = *count[0] + 1;
                         sem.V(MUTEX);
                         break;
                     }
@@ -196,6 +234,7 @@ int main(int argc, const char * argv[]) {
                         int account = randomAccount();
                         sem.P(MUTEX);
                         withdraw(bank[account]);
+
 						*count[1] = *count[1] + 1;
                         sem.V(MUTEX);
                         break;
@@ -203,12 +242,16 @@ int main(int argc, const char * argv[]) {
                     case 3: {
                         int account_from = randomAccount();
                         int account_to = randomAccount();
-                        while(account_to == account_from){
+                        
+                        while(account_to == account_from) {
                             account_from = randomAccount();
                         }
                         sem.P(MUTEX);
                         transfer(bank[account_from] , bank[account_to]);
                         *count[2] = *count[2] + 1;
+                        
+                        sem.P(MUTEX);
+                        transfer(bank[account_from] , bank[account_to]);
                         sem.V(MUTEX);
                         break;
                     }
@@ -231,11 +274,13 @@ int main(int argc, const char * argv[]) {
                     }
                     default: {
                         break;
+						printf("ERROR - Default on request = %d\n", request);
                     }
                 }
                 
                 
             }
+           
             exit(0);
         }
     }
@@ -248,33 +293,13 @@ int main(int argc, const char * argv[]) {
         printf("pid (%d) exits\n", pid);
         --p;
     }
-    
-    
-    cout << endl;
-    
-    // print operation percentages
-    int sum = *count[0] + *count[1] + *count[2] + *count[3];
-    int n = NUM_PROC * REQS;
-   	for (int i = 0; i < 5; i++) {
-   		double c;
-   		if (i < 4) {
-   			c = *count[i];
-   		} else {
-   			c = n - sum;
-   		}
-   		
-   		printf("%-17s %5.2lf%%\n", ops[i], 100 * (c / (double)n));
-   	}
-   	
-   	cout << endl;
    	
     // output and clean up
     for (int x = 0; x < NUM_ACCTS; x++){
         printf("$%d in %s account\n", *bank[x], names[x]);
+        shmctl(shmid[y], IPC_RMID, NULL);
     }
-    
-    for (int y = 0; y < 9; y++) {
-    	shmctl(shmid[y], IPC_RMID, NULL);
+        
     };
     
     sem.remove();
@@ -282,14 +307,15 @@ int main(int argc, const char * argv[]) {
     exit(0);
 }
 
-int randomAccount()
-{
+
+int randomAccount() {
     default_random_engine generator(random_device{}());
     uniform_int_distribution<int> distribution(0, NUM_ACCTS - 1);
     return distribution(generator);
 }
 
 int randomRequest() {
+
     default_random_engine generator(random_device{}());
     uniform_int_distribution<int> distribution(0, pow(2.0, 32.0) - 1.0);
     
@@ -343,10 +369,41 @@ void transferToChecking( int *savings , int *vacation , int *checking){
 		(*checking)++;
 	} else {
 		alert();
+
+void withdraw(int *account) {
+
+    if (canDecrement(*account)) {
+        (*account)--;
+    } else {
+        alert();
     }
 }
 
-void depositIRA(int *IRA , int *account_from){
+
+void transfer( int *account_from , int *account_to ) {
+    
+    if (canDecrement(*account_from)) {
+        (*account_from)--;
+        (*account_to)++;
+    }
+    else {
+        alert();
+    }
+}
+
+
+void transferToChecking( int *savings , int *vacation , int *checking) {
+    
+    if (canDecrement(*savings) && canDecrement(*vacation)) {
+        (*savings)--;
+        (*vacation)--;
+        (*checking)++;
+    } else {
+        alert();
+    }
+}
+
+void depositIRA(int *IRA , int *account_from) {
 
     if (canDecrement(*account_from)) {    	
 		(*account_from)--;
@@ -354,6 +411,23 @@ void depositIRA(int *IRA , int *account_from){
 	} else {
 		alert();
 	}
+	
+void depositIRA(int *IRA , int *account_from) {
+
+    if (canDecrement(*account_from)) {    	
+        (*account_from)--;
+        (*IRA)++;
+    } else {
+        alert();
+    }
 }
 
 
+void alert() {
+    cout << "Transfer Denied" << endl;
+}
+
+
+bool canDecrement(int val) {
+    return (--val >= 0);
+}
